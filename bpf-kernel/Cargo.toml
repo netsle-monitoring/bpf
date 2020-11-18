@@ -19,6 +19,6 @@ probes = []
 path = "src/lib.rs"
 
 [[bin]]
-name = "monitor-probe"
-path = "src/monitor-probe/main.rs"
+name = "monitor"
+path = "src/monitor/main.rs"
 required-features = ["probes"]
