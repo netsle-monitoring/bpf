@@ -9,5 +9,5 @@ edition = "2018"
 [dependencies]
 redbpf = { version = "1.2.0", features=["load"]}
 futures = { version = "0.3" }
-tokio = { version = "^0.2.4", features=["tcp"]}
+tokio = { version = "^0.2.4", features=["tcp", "time"]}
 hexdump = { version = "0.1" }
