@@ -6,6 +6,8 @@ use std::env;
 use std::io;
 use std::path::Path;
 use tokio::signal;
+use tokio::time::delay_for;
+use std::time::Duration;
 
 pub mod network_utils;
 
@@ -48,24 +50,8 @@ async fn main() -> Result<(), io::Error> {
 
     // Listen to incoming map's data
     tokio::spawn(async move {
-        let mut packet_num: u32 = 0;
-        while let Some((_name, events)) = loader.events.next().await {
-            for event in events {
-                //let structured_event = unsafe { std::ptr::read(event.as_ptr() as *const Event) };
-                let data = unsafe { &*(event.as_ptr() as *const MapData<Event>) };
-                let structured_event = data.data();
-                packet_num += 1;
-                println!(
-                    "{:?}:{:?} -> {:?}:{:?} length: {:?} #{}",
-                    network_utils::u32_to_ipv4(structured_event.saddr),
-                    structured_event.sport,
-                    network_utils::u32_to_ipv4(structured_event.daddr),
-                    structured_event.dport,
-                    data.payload().len(),
-					packet_num
-                );
-                //println!("{:?}", to_ipv4(structuredEvent.daddr))
-            }
+        loop {
+            delay_for(Duration::from_millis(1000)).await;
         }
 
         // If the program doesn't have any maps and therefore doesn't fire any events, we still
