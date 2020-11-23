@@ -1,6 +1,6 @@
-use futures::{future, stream::StreamExt};
+use futures::{future};
 use redbpf::load::Loader;
-use redbpf::xdp::{Flags, MapData};
+use redbpf::xdp::{Flags};
 use redbpf::Program::*;
 use std::env;
 use std::io;
