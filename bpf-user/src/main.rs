@@ -8,8 +8,7 @@ use tokio::signal;
 use tokio::time::delay_for;
 use std::time::Duration;
 
-use std::ffi::CStr;
-use std::os::raw::c_char;
+
 use redbpf::{load::Loader, HashMap as BPFHashMap};
 
 
@@ -66,7 +65,7 @@ async fn main() -> Result<(), io::Error> {
         loop {
             delay_for(Duration::from_millis(1000)).await;
             //format ips Hashmap into vec
-            let mut ip_vec: Vec<(u32, aggs::IPAggs)> = ips.iter().collect();
+            let  ip_vec: Vec<(u32, aggs::IPAggs)> = ips.iter().collect();
             println!("========Ips=======");
             for (k, v) in ip_vec.iter().rev() {
                 println!(
@@ -77,7 +76,7 @@ async fn main() -> Result<(), io::Error> {
                 ips.delete(*k);
             }
             //format port Hashmap into vec
-            let mut port_vec: Vec<(u16, aggs::PortAggs)> = ports.iter().collect();
+            let  port_vec: Vec<(u16, aggs::PortAggs)> = ports.iter().collect();
             println!("========Ports=======");
             for (k, v) in port_vec.iter().rev() {
                 println!(
@@ -92,11 +91,8 @@ async fn main() -> Result<(), io::Error> {
 
             
         }
-        
-        future::pending::<()>().await;
-        // If the program doesn't have any maps and therefore doesn't fire any events, we still
-        // need to keep `loader` alive here so that BPF programs are not dropped. The future
-        // below will never complete, meaning that the programs will keep running until Ctrl-C
+
+
     });
 
     signal::ctrl_c().await
