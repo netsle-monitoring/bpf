@@ -18,7 +18,7 @@ async fn main() -> Result<(), io::Error> {
 
     // check for args length
     if args.len() != 3 {
-        eprintln!("usage: bpf_example_program [NETWORK_INTERFACE] [FILENAME]");
+        eprintln!("usage: bpf-user [NETWORK_INTERFACE] [FILENAME]");
         return Err(io::Error::new(io::ErrorKind::Other, "invalid arguments"));
     }
 
