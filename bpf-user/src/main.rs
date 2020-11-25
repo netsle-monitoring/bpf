@@ -1,4 +1,3 @@
-use futures::{future};
 use redbpf::xdp::{Flags};
 use redbpf::Program::*;
 use std::env;
@@ -8,21 +7,10 @@ use tokio::signal;
 use tokio::time::delay_for;
 use std::time::Duration;
 
-
 use redbpf::{load::Loader, HashMap as BPFHashMap};
 
 pub mod network_utils;
 pub mod aggs;
-
-// The event map (the data structure we pass through the stream/maps)
-#[repr(C)]
-#[derive(Debug)]
-pub struct Event {
-    pub saddr: u32,
-    pub daddr: u32,
-    pub sport: u16,
-    pub dport: u16,
-}
 
 #[tokio::main]
 async fn main() -> Result<(), io::Error> {
