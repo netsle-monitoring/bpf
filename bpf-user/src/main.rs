@@ -1,5 +1,4 @@
 use futures::{future};
-use redbpf::load::Loader;
 use redbpf::xdp::{Flags};
 use redbpf::Program::*;
 use std::env;
@@ -9,7 +8,15 @@ use tokio::signal;
 use tokio::time::delay_for;
 use std::time::Duration;
 
+use std::ffi::CStr;
+use std::os::raw::c_char;
+use redbpf::{load::Loader, HashMap as BPFHashMap};
+
+
 pub mod network_utils;
+pub mod aggs;
+
+
 
 // The event map (the data structure we pass through the stream/maps)
 #[repr(C)]
@@ -34,7 +41,7 @@ async fn main() -> Result<(), io::Error> {
     let interface = args[1].clone();
     let file = args[2].clone();
 
-    let mut loader = Loader::load_file(&Path::new(&file)).expect("Error loading file...");
+    let mut  loader = Loader::load_file(&Path::new(&file)).expect("Error loading file...");
 
     // Load all of the XDP programs from the binary 
     for program in loader.module.programs.iter_mut() {
@@ -47,17 +54,48 @@ async fn main() -> Result<(), io::Error> {
             _ => Ok(()),
         };
     }
+    
 
     // Listen to incoming map's data
     tokio::spawn(async move {
+        let  ips =
+                    BPFHashMap::<u32, aggs::IPAggs>::new(loader.map("ip_map").unwrap()).unwrap();
+            let ports = 
+
+                    BPFHashMap::<u16, aggs::PortAggs>::new(loader.map("port_map").unwrap()).unwrap();
         loop {
             delay_for(Duration::from_millis(1000)).await;
+            //format ips Hashmap into vec
+            let mut ip_vec: Vec<(u32, aggs::IPAggs)> = ips.iter().collect();
+            println!("========Ips=======");
+            for (k, v) in ip_vec.iter().rev() {
+                println!(
+                    "{:?} - > count:{:?}",
+                    network_utils::u32_to_ipv4(*k),
+                    v.count
+                );
+                ips.delete(*k);
+            }
+            //format port Hashmap into vec
+            let mut port_vec: Vec<(u16, aggs::PortAggs)> = ports.iter().collect();
+            println!("========Ports=======");
+            for (k, v) in port_vec.iter().rev() {
+                println!(
+                    "{:?} - > count:{:?}",
+                    k,
+                    v.count
+                );
+                ports.delete(*k);
+            }
+            
+        
+
+            
         }
 
         // If the program doesn't have any maps and therefore doesn't fire any events, we still
         // need to keep `loader` alive here so that BPF programs are not dropped. The future
         // below will never complete, meaning that the programs will keep running until Ctrl-C
-        future::pending::<()>().await;
     });
 
     signal::ctrl_c().await
