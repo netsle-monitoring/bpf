@@ -49,7 +49,7 @@ async fn main() -> Result<(), io::Error> {
         loop {
             delay_for(Duration::from_millis(1000)).await;
             //format ips Hashmap into vec
-            let  ip_vec: Vec<(u32, aggs::IPAggs)> = ips.iter().collect();
+            let ip_vec: Vec<(u32, aggs::IPAggs)> = ips.iter().collect();
             println!("========Ips=======");
             for (k, v) in ip_vec.iter().rev() {
                 println!(
@@ -61,7 +61,7 @@ async fn main() -> Result<(), io::Error> {
             }
 
             //format port Hashmap into vec
-            let  port_vec: Vec<(u16, aggs::PortAggs)> = ports.iter().collect();
+            let port_vec: Vec<(u16, aggs::PortAggs)> = ports.iter().collect();
             println!("========Ports=======");
             for (k, v) in port_vec.iter().rev() {
                 println!(
