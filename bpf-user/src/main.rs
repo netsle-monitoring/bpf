@@ -92,7 +92,8 @@ async fn main() -> Result<(), io::Error> {
 
             
         }
-
+        
+        future::pending::<()>().await;
         // If the program doesn't have any maps and therefore doesn't fire any events, we still
         // need to keep `loader` alive here so that BPF programs are not dropped. The future
         // below will never complete, meaning that the programs will keep running until Ctrl-C
