@@ -11,11 +11,8 @@ use std::time::Duration;
 
 use redbpf::{load::Loader, HashMap as BPFHashMap};
 
-
 pub mod network_utils;
 pub mod aggs;
-
-
 
 // The event map (the data structure we pass through the stream/maps)
 #[repr(C)]
@@ -53,15 +50,14 @@ async fn main() -> Result<(), io::Error> {
             _ => Ok(()),
         };
     }
-    
 
     // Listen to incoming map's data
     tokio::spawn(async move {
-        let  ips =
-                    BPFHashMap::<u32, aggs::IPAggs>::new(loader.map("ip_map").unwrap()).unwrap();
-            let ports = 
+        let ips =
+            BPFHashMap::<u32, aggs::IPAggs>::new(loader.map("ip_map").unwrap()).unwrap();
+        let ports = 
+            BPFHashMap::<u16, aggs::PortAggs>::new(loader.map("port_map").unwrap()).unwrap();
 
-                    BPFHashMap::<u16, aggs::PortAggs>::new(loader.map("port_map").unwrap()).unwrap();
         loop {
             delay_for(Duration::from_millis(1000)).await;
             //format ips Hashmap into vec
@@ -75,6 +71,7 @@ async fn main() -> Result<(), io::Error> {
                 );
                 ips.delete(*k);
             }
+
             //format port Hashmap into vec
             let  port_vec: Vec<(u16, aggs::PortAggs)> = ports.iter().collect();
             println!("========Ports=======");
@@ -86,14 +83,7 @@ async fn main() -> Result<(), io::Error> {
                 );
                 ports.delete(*k);
             }
-            
-        
-
-            
         }
-
-
     });
-
     signal::ctrl_c().await
 }
