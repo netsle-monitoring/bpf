@@ -1,16 +1,16 @@
-use redbpf::xdp::{Flags};
+use redbpf::xdp::Flags;
 use redbpf::Program::*;
 use std::env;
 use std::io;
 use std::path::Path;
+use std::time::Duration;
 use tokio::signal;
 use tokio::time::delay_for;
-use std::time::Duration;
 
 use redbpf::{load::Loader, HashMap as BPFHashMap};
 
-pub mod network_utils;
 pub mod aggs;
+pub mod network_utils;
 
 #[tokio::main]
 async fn main() -> Result<(), io::Error> {
@@ -25,9 +25,9 @@ async fn main() -> Result<(), io::Error> {
     let interface = args[1].clone();
     let file = args[2].clone();
 
-    let mut  loader = Loader::load_file(&Path::new(&file)).expect("Error loading file...");
+    let mut loader = Loader::load_file(&Path::new(&file)).expect("Error loading file...");
 
-    // Load all of the XDP programs from the binary 
+    // Load all of the XDP programs from the binary
     for program in loader.module.programs.iter_mut() {
         let name = program.name().to_string();
         let _ret = match program {
@@ -41,9 +41,8 @@ async fn main() -> Result<(), io::Error> {
 
     // Listen to incoming map's data
     tokio::spawn(async move {
-        let ips =
-            BPFHashMap::<u32, aggs::IPAggs>::new(loader.map("ip_map").unwrap()).unwrap();
-        let ports = 
+        let ips = BPFHashMap::<u32, aggs::IPAggs>::new(loader.map("ip_map").unwrap()).unwrap();
+        let ports =
             BPFHashMap::<u16, aggs::PortAggs>::new(loader.map("port_map").unwrap()).unwrap();
 
         loop {
@@ -64,11 +63,7 @@ async fn main() -> Result<(), io::Error> {
             let port_vec: Vec<(u16, aggs::PortAggs)> = ports.iter().collect();
             println!("========Ports=======");
             for (k, v) in port_vec.iter().rev() {
-                println!(
-                    "{:?} - > count:{:?}",
-                    k,
-                    v.count
-                );
+                println!("{:?} - > count:{:?}", k, v.count);
                 ports.delete(*k);
             }
         }
