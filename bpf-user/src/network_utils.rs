@@ -11,3 +11,12 @@ pub fn u32_to_ipv4(rawip: u32) -> Ipv4Addr {
 
     Ipv4Addr::new(a, b, c, d)
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    #[test]
+    fn should_convert_ip_correctly() {
+        assert_eq!("10.0.0.28", u32_to_ipv4(469762058).to_string())
+    }
+}
