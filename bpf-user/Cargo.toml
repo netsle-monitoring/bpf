@@ -1,0 +1,15 @@
+[package]
+name = "bpf-user"
+version = "0.1.0"
+authors = ["amit <gamesil456@gmail.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+redbpf = { version = "1.2.0", features=["load"]}
+futures = { version = "0.3" }
+tokio = { version = "^0.2.4", features=["tcp", "time"]}
+hexdump = { version = "0.1" }
+serde_json = "1.0.59"
+serde = { version = "1.0", features = ["derive"] }
