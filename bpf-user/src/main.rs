@@ -10,6 +10,7 @@ use std::net::{TcpStream};
 use redbpf::{load::Loader, HashMap as BPFHashMap};
 use std::io::prelude::*;
 use simple_logger::SimpleLogger;
+use std::process;
 
 pub mod aggs;
 pub mod network_utils;
@@ -45,7 +46,18 @@ async fn main() -> Result<(), io::Error> {
         };
     }
 
-    let mut socket_connection = TcpStream::connect("localhost:5000").unwrap();
+    log::info!("Trying to establish socket connection to logstash");
+    let mut socket_connection = match TcpStream::connect("localhost:5000") {
+        Ok(con) => {
+            log::info!("Connected to logstash successfully");
+            con
+        },
+        Err(_) => {
+            log::error!("Connection to logstash failed, aborting.");
+            process::exit(1);
+        }
+    };
+
 
     // Listen to incoming map's data
     tokio::spawn(async move {
