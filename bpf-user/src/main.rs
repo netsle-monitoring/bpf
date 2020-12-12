@@ -114,11 +114,20 @@ async fn main() -> Result<(), io::Error> {
                 ports: parsed_ports,
             };
 
-            socket_connection
+            let msg = socket_connection
                 .write(
                     &format!("{}\n", &serde_json::to_string(&data_iteration).unwrap()).as_bytes(),
-                )
-                .unwrap();
+                );
+            
+            match msg {
+                Err(_) => {
+                    log::error!("Broken pipe! [Possibly lost connection to server] aborting.");
+                    process::exit(1);
+                },
+                _ => {
+                    log::info!("Sent data iteration successfully");
+                }
+            }
         }
     });
     signal::ctrl_c().await
