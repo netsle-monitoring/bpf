@@ -50,7 +50,7 @@ async fn main() -> Result<(), io::Error> {
             BPFHashMap::<u16, aggs::PortAggs>::new(loader.map("port_map").unwrap()).unwrap();
 
         loop {
-            delay_for(Duration::from_millis(10000)).await;
+            delay_for(Duration::from_millis(60000)).await;
             //format ips Hashmap into vec
             let ip_vec: Vec<(u32, aggs::IPAggs)> = ips.iter().collect();
             let mut parsed_ips: Vec<elastic_mapping::EsReadyIpAggs> = Vec::new();
