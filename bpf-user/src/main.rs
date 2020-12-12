@@ -74,6 +74,7 @@ async fn main() -> Result<(), io::Error> {
             let mut parsed_ips: Vec<elastic_mapping::EsReadyIpAggs> = Vec::new();
 
             log::debug!("========ip addresses=======");
+
             for (k, v) in ip_vec.iter().rev() {
                 log::debug!(
                     "{:?} - > count:{:?}",
@@ -94,7 +95,9 @@ async fn main() -> Result<(), io::Error> {
             //format port Hashmap into vec
             let port_vec: Vec<(u16, aggs::PortAggs)> = ports.iter().collect();
             let mut parsed_ports: Vec<elastic_mapping::EsReadyPortAggs> = Vec::new();
+
             log::debug!("========ports=======");
+
             for (k, v) in port_vec.iter().rev() {
                 log::debug!("{:?} - > count:{:?}", k, v.count);
                 let current_port_agg = elastic_mapping::EsReadyPortAggs {
