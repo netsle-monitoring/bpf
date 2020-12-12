@@ -10,11 +10,11 @@ pub struct BPFDataIteration {
 pub struct EsReadyIpAggs {
     pub ip: String,
     pub count: u32,
-    pub usage: u32
+    pub usage: u32,
 }
 
 #[derive(Deserialize, Serialize)]
 pub struct EsReadyPortAggs {
     pub port: u16,
-    pub count: u32
+    pub count: u32,
 }

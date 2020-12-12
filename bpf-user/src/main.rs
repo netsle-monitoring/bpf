@@ -1,25 +1,28 @@
 use redbpf::xdp::Flags;
 use redbpf::Program::*;
+use redbpf::{load::Loader, HashMap as BPFHashMap};
+use simple_logger::SimpleLogger;
 use std::env;
 use std::io;
+use std::io::prelude::*;
+use std::net::TcpStream;
 use std::path::Path;
+use std::process;
 use std::time::Duration;
 use tokio::signal;
 use tokio::time::delay_for;
-use std::net::{TcpStream};
-use redbpf::{load::Loader, HashMap as BPFHashMap};
-use std::io::prelude::*;
-use simple_logger::SimpleLogger;
-use std::process;
 
 pub mod aggs;
-pub mod network_utils;
 pub mod elastic_mapping;
+pub mod network_utils;
 
 #[tokio::main]
 async fn main() -> Result<(), io::Error> {
     // Initialize the logger to support a certain debug level.
-    SimpleLogger::new().with_level(log::LevelFilter::Debug).init().unwrap();
+    SimpleLogger::new()
+        .with_level(log::LevelFilter::Debug)
+        .init()
+        .unwrap();
 
     let args: Vec<String> = env::args().collect(); // ARGV
 
@@ -51,13 +54,12 @@ async fn main() -> Result<(), io::Error> {
         Ok(con) => {
             log::info!("Connected to logstash successfully");
             con
-        },
+        }
         Err(_) => {
             log::error!("Connection to logstash failed, aborting.");
             process::exit(1);
         }
     };
-
 
     // Listen to incoming map's data
     tokio::spawn(async move {
@@ -78,11 +80,11 @@ async fn main() -> Result<(), io::Error> {
                     network_utils::u32_to_ipv4(*k),
                     v.count
                 );
-                
+
                 let current_ip_agg = elastic_mapping::EsReadyIpAggs {
                     ip: network_utils::u32_to_ipv4(*k).to_string(),
                     count: v.count,
-                    usage: v.usage
+                    usage: v.usage,
                 };
 
                 parsed_ips.push(current_ip_agg);
@@ -109,7 +111,11 @@ async fn main() -> Result<(), io::Error> {
                 ports: parsed_ports,
             };
 
-            socket_connection.write(&format!("{}\n", &serde_json::to_string(&data_iteration).unwrap()).as_bytes()).unwrap();
+            socket_connection
+                .write(
+                    &format!("{}\n", &serde_json::to_string(&data_iteration).unwrap()).as_bytes(),
+                )
+                .unwrap();
         }
     });
     signal::ctrl_c().await
