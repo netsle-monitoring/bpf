@@ -9,6 +9,7 @@ use tokio::time::delay_for;
 use std::net::{TcpStream};
 use redbpf::{load::Loader, HashMap as BPFHashMap};
 use std::io::prelude::*;
+use simple_logger::SimpleLogger;
 
 pub mod aggs;
 pub mod network_utils;
@@ -16,11 +17,14 @@ pub mod elastic_mapping;
 
 #[tokio::main]
 async fn main() -> Result<(), io::Error> {
+    // Initialize the logger to support a certain debug level.
+    SimpleLogger::new().with_level(log::LevelFilter::Debug).init().unwrap();
+
     let args: Vec<String> = env::args().collect(); // ARGV
 
     // check for args length
     if args.len() != 3 {
-        eprintln!("usage: bpf-user [NETWORK_INTERFACE] [FILENAME]");
+        log::error!("usage: bpf-user [NETWORK_INTERFACE] [FILENAME]");
         return Err(io::Error::new(io::ErrorKind::Other, "invalid arguments"));
     }
 
@@ -34,7 +38,7 @@ async fn main() -> Result<(), io::Error> {
         let name = program.name().to_string();
         let _ret = match program {
             XDP(prog) => {
-                println!("Attaching to {:?} interface: {:?}!!!", &name, &interface);
+                log::info!("Attaching to {:?} interface: {:?}", &name, &interface);
                 prog.attach_xdp(&interface, Flags::default()) // attach the program to the Kernel space
             }
             _ => Ok(()),
@@ -55,9 +59,9 @@ async fn main() -> Result<(), io::Error> {
             let ip_vec: Vec<(u32, aggs::IPAggs)> = ips.iter().collect();
             let mut parsed_ips: Vec<elastic_mapping::EsReadyIpAggs> = Vec::new();
 
-            println!("========Ips=======");
+            log::debug!("========ip addresses=======");
             for (k, v) in ip_vec.iter().rev() {
-                println!(
+                log::debug!(
                     "{:?} - > count:{:?}",
                     network_utils::u32_to_ipv4(*k),
                     v.count
@@ -76,9 +80,9 @@ async fn main() -> Result<(), io::Error> {
             //format port Hashmap into vec
             let port_vec: Vec<(u16, aggs::PortAggs)> = ports.iter().collect();
             let mut parsed_ports: Vec<elastic_mapping::EsReadyPortAggs> = Vec::new();
-            println!("========Ports=======");
+            log::debug!("========ports=======");
             for (k, v) in port_vec.iter().rev() {
-                println!("{:?} - > count:{:?}", k, v.count);
+                log::debug!("{:?} - > count:{:?}", k, v.count);
                 let current_port_agg = elastic_mapping::EsReadyPortAggs {
                     port: *k,
                     count: v.count,
