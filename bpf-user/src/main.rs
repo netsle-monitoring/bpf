@@ -1,26 +1,34 @@
 use redbpf::xdp::Flags;
 use redbpf::Program::*;
+use redbpf::{load::Loader, HashMap as BPFHashMap};
+use simple_logger::SimpleLogger;
 use std::env;
 use std::io;
+use std::io::prelude::*;
+use std::net::TcpStream;
 use std::path::Path;
+use std::process;
 use std::time::Duration;
 use tokio::signal;
 use tokio::time::delay_for;
-use std::net::{TcpStream};
-use redbpf::{load::Loader, HashMap as BPFHashMap};
-use std::io::prelude::*;
 
 pub mod aggs;
-pub mod network_utils;
 pub mod elastic_mapping;
+pub mod network_utils;
 
 #[tokio::main]
 async fn main() -> Result<(), io::Error> {
+    // Initialize the logger to support a certain debug level.
+    SimpleLogger::new()
+        .with_level(log::LevelFilter::Debug)
+        .init()
+        .unwrap();
+
     let args: Vec<String> = env::args().collect(); // ARGV
 
     // check for args length
     if args.len() != 3 {
-        eprintln!("usage: bpf-user [NETWORK_INTERFACE] [FILENAME]");
+        log::error!("usage: bpf-user [NETWORK_INTERFACE] [FILENAME]");
         return Err(io::Error::new(io::ErrorKind::Other, "invalid arguments"));
     }
 
@@ -34,14 +42,24 @@ async fn main() -> Result<(), io::Error> {
         let name = program.name().to_string();
         let _ret = match program {
             XDP(prog) => {
-                println!("Attaching to {:?} interface: {:?}!!!", &name, &interface);
+                log::info!("Attaching to {:?} interface: {:?}", &name, &interface);
                 prog.attach_xdp(&interface, Flags::default()) // attach the program to the Kernel space
             }
             _ => Ok(()),
         };
     }
 
-    let mut socket_connection = TcpStream::connect("localhost:5000").unwrap();
+    log::info!("Trying to establish socket connection to logstash");
+    let mut socket_connection = match TcpStream::connect("localhost:5000") {
+        Ok(con) => {
+            log::info!("Connected to logstash successfully");
+            con
+        }
+        Err(_) => {
+            log::error!("Connection to logstash failed, aborting.");
+            process::exit(1);
+        }
+    };
 
     // Listen to incoming map's data
     tokio::spawn(async move {
@@ -55,18 +73,19 @@ async fn main() -> Result<(), io::Error> {
             let ip_vec: Vec<(u32, aggs::IPAggs)> = ips.iter().collect();
             let mut parsed_ips: Vec<elastic_mapping::EsReadyIpAggs> = Vec::new();
 
-            println!("========Ips=======");
+            log::debug!("========ip addresses=======");
+
             for (k, v) in ip_vec.iter().rev() {
-                println!(
+                log::debug!(
                     "{:?} - > count:{:?}",
                     network_utils::u32_to_ipv4(*k),
                     v.count
                 );
-                
+
                 let current_ip_agg = elastic_mapping::EsReadyIpAggs {
                     ip: network_utils::u32_to_ipv4(*k).to_string(),
                     count: v.count,
-                    usage: v.usage
+                    usage: v.usage,
                 };
 
                 parsed_ips.push(current_ip_agg);
@@ -76,9 +95,11 @@ async fn main() -> Result<(), io::Error> {
             //format port Hashmap into vec
             let port_vec: Vec<(u16, aggs::PortAggs)> = ports.iter().collect();
             let mut parsed_ports: Vec<elastic_mapping::EsReadyPortAggs> = Vec::new();
-            println!("========Ports=======");
+
+            log::debug!("========ports=======");
+
             for (k, v) in port_vec.iter().rev() {
-                println!("{:?} - > count:{:?}", k, v.count);
+                log::debug!("{:?} - > count:{:?}", k, v.count);
                 let current_port_agg = elastic_mapping::EsReadyPortAggs {
                     port: *k,
                     count: v.count,
@@ -93,7 +114,20 @@ async fn main() -> Result<(), io::Error> {
                 ports: parsed_ports,
             };
 
-            socket_connection.write(&format!("{}\n", &serde_json::to_string(&data_iteration).unwrap()).as_bytes()).unwrap();
+            let msg = socket_connection
+                .write(
+                    &format!("{}\n", &serde_json::to_string(&data_iteration).unwrap()).as_bytes(),
+                );
+            
+            match msg {
+                Err(_) => {
+                    log::error!("Broken pipe! [Possibly lost connection to server] aborting.");
+                    process::exit(1);
+                },
+                _ => {
+                    log::info!("Sent data iteration successfully");
+                }
+            }
         }
     });
     signal::ctrl_c().await
