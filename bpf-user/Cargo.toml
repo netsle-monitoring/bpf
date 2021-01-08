@@ -13,3 +13,5 @@ tokio = { version = "^0.2.4", features=["tcp", "time"]}
 hexdump = { version = "0.1" }
 serde_json = "1.0.59"
 serde = { version = "1.0", features = ["derive"] }
+log = "0.4.11"
+simple_logger = "1.11.0"
