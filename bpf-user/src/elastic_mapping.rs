@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 pub struct BPFDataIteration {
     pub ips: Vec<EsReadyIpAggs>,
     pub ports: Vec<EsReadyPortAggs>,
+    pub packet_count: u32
 }
 
 #[derive(Deserialize, Serialize)]

@@ -54,6 +54,7 @@ async fn main() -> Result<(), io::Error> {
             //format ips Hashmap into vec
             let ip_vec: Vec<(u32, aggs::IPAggs)> = ips.iter().collect();
             let mut parsed_ips: Vec<elastic_mapping::EsReadyIpAggs> = Vec::new();
+            let mut packet_count: u32 = 0;
 
             println!("========Ips=======");
             for (k, v) in ip_vec.iter().rev() {
@@ -69,6 +70,7 @@ async fn main() -> Result<(), io::Error> {
                     usage: v.usage
                 };
 
+                packet_count += v.count;
                 parsed_ips.push(current_ip_agg);
                 ips.delete(*k);
             }
@@ -91,6 +93,7 @@ async fn main() -> Result<(), io::Error> {
             let data_iteration = elastic_mapping::BPFDataIteration {
                 ips: parsed_ips,
                 ports: parsed_ports,
+                packet_count
             };
 
             socket_connection.write(&format!("{}\n", &serde_json::to_string(&data_iteration).unwrap()).as_bytes()).unwrap();
