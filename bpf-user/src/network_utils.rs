@@ -12,6 +12,10 @@ pub fn u32_to_ipv4(rawip: u32) -> Ipv4Addr {
     Ipv4Addr::new(a, b, c, d)
 }
 
+pub fn to_le(i: u16) -> u16 {
+    (i >> 8) | (i << 8)
+}
+
 #[cfg(test)]
 mod test {
     use super::*;

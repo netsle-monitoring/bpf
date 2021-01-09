@@ -2,44 +2,37 @@
 #![no_main]
 // use redbpf_probes::xdp::prelude::*;
 use redbpf_probes::kprobe::prelude::*;
-
 pub mod aggs;
-
 program!(0xFFFFFFFE, "GPL");
-
-// A macro which defines an insert behavior
-// If there isn't a key, create an entry
-// if there is a key, return the entry
-macro_rules! insert_to_map {
-    ($map:expr, $key:expr, $agg_to_insert:expr) => {
-        match $map.get_mut($key) {
-            Some(c) => c,
-            None => {
-                $map.set($key, $agg_to_insert);
-                $map.get_mut($key).unwrap()
-            }
-        }
-    };
-}
 
 #[map("task_to_socket")]
 static mut task_to_socket: HashMap<u64, *const sock> = HashMap::with_max_entries(10240);
-#[map("download_ip_map")]
-static mut download_ip_map: HashMap<u32, aggs::IPAggs> = HashMap::with_max_entries(1024);
-#[map("download_port_map")]
-static mut download_port_map: HashMap<u16, aggs::PortAggs> = HashMap::with_max_entries(1024);
-#[map("upload_ip_map")]
-static mut upload_ip_map: HashMap<u32, aggs::IPAggs> = HashMap::with_max_entries(1024);
-#[map("upload_port_map")]
-static mut upload_port_map: HashMap<u16, aggs::PortAggs> = HashMap::with_max_entries(1024);
+#[map("ip_volumes")]
+static mut ip_volumes: PerfMap<aggs::Message> = PerfMap::with_max_entries(1024); 
+#[map("ip_connections")]
+static mut ip_connections: PerfMap<aggs::Connection> = PerfMap::with_max_entries(1024);
 
 #[kprobe("tcp_v4_connect")]
 pub fn connect_enter(regs: Registers) {
     store_socket(regs)
 }
 
-#[kretprobe("tcp_sendmsg")]
+#[kretprobe("tcp_v4_connect")]
+pub fn connect(regs: Registers) {
+    if let Some(c) = conn_details(regs) {
+        unsafe {
+            ip_connections.insert(regs.ctx, &c);
+        }
+    }
+}
+
+#[kprobe("tcp_sendmsg")]
 pub fn send_enter(regs: Registers) {
+    store_socket(regs)
+}
+
+#[kretprobe("tcp_sendmsg")]
+pub fn send_exit(regs: Registers) {
     trace_message(regs, aggs::Message::Send)
 }
 
@@ -72,39 +65,8 @@ fn store_socket(regs: Registers) {
 fn trace_message(regs: Registers, direction: fn(aggs::Connection, u16) -> aggs::Message) {
     if let Some(c) = conn_details(regs) {
         let len = regs.parm3() as u16;
-        let port_agg = aggs::PortAggs { count: 0u32 };
-        let ip_agg = aggs::IPAggs {
-            count: 0u32,
-            usage: 0u32, // bits
-        };
-
         unsafe {
-            let message = &direction(c, len);
-            match message {
-                aggs::Message::Send(con, _) => {
-                    let mut port_agg_sport = insert_to_map!(upload_port_map, &con.sport, &port_agg);
-                    let mut ip_agg_sip = insert_to_map!(upload_ip_map, &con.saddr, &ip_agg);
-                    let mut port_agg_dport = insert_to_map!(upload_port_map, &con.dport, &port_agg);
-                    let mut ip_agg_dip = insert_to_map!(upload_ip_map, &con.daddr, &ip_agg);
-
-                    port_agg_sport.count += 1;
-                    ip_agg_sip.count += 1;
-                    port_agg_dport.count += 1;
-                    ip_agg_dip.count += 1;
-                },
-                aggs::Message::Receive(con, _) => {
-                    let mut port_agg_sport = insert_to_map!(download_port_map, &con.sport, &port_agg);
-                    let mut ip_agg_sip = insert_to_map!(download_ip_map, &con.saddr, &ip_agg);
-                    let mut port_agg_dport = insert_to_map!(download_port_map, &con.dport, &port_agg);
-                    let mut ip_agg_dip = insert_to_map!(download_ip_map, &con.daddr, &ip_agg);
-
-                    port_agg_sport.count += 1;
-                    ip_agg_sip.count += 1;
-                    port_agg_dport.count += 1;
-                    ip_agg_dip.count += 1;
-                }
-            }
-            // ip_volumes.insert(regs.ctx, &direction(c, len));
+            ip_volumes.insert(regs.ctx, &direction(c, len));
         }
     }
 }
@@ -138,8 +100,8 @@ pub fn conn_details(_regs: Registers) -> Option<aggs::Connection> {
     Some(aggs::Connection {
         saddr: src as u32,
         daddr: dest as u32,
-        sport: ((sport >> 8) | (sport << 8)),
-        dport: ((dport >> 8) | (dport << 8)),
+        sport,
+        dport,
     })
 }
 
