@@ -25,12 +25,19 @@ macro_rules! insert_to_map {
 static mut ip_map: HashMap<u32, aggs::IPAggs> = HashMap::with_max_entries(10240);
 #[map("port_map")]
 static mut port_map: HashMap<u16, aggs::PortAggs> = HashMap::with_max_entries(10240);
+#[map("ip_blacklist")]
+static mut ip_blacklist: HashMap<u32, u32> = HashMap::with_max_entries(10240);
 
 #[xdp("monitor")]
 pub fn probe(ctx: XdpContext) -> XdpResult {
     let ip = unsafe { *ctx.ip()? };
     let transport = ctx.transport()?;
     let data = ctx.data()?;
+    
+    if unsafe {ip_blacklist.get(&ip.saddr).is_some()} {
+        return Ok(XdpAction::Drop)
+    }
+
     let port_agg = aggs::PortAggs {
         count: 0u32
     };
@@ -39,7 +46,7 @@ pub fn probe(ctx: XdpContext) -> XdpResult {
         count: 0u32,
         usage: 0u32, // bits
     };
-    
+
     unsafe {
         let mut port_agg_sport = insert_to_map!(port_map, &transport.source(), &port_agg);
         let mut port_agg_dport = insert_to_map!(port_map, &transport.dest(), &port_agg);
